@@ -72,7 +72,7 @@ function formatResetTime(timestamp) {
       fs.appendFileSync('bsky-social.txt', `bsky-social-${code1}-${code2}\n`)
       file += `bsky-social-${code1}-${code2}\n`
     }
-  } while (result.error === 'InvalidInviteCode')
+  } while (result.error === 'InvalidInviteCode' || result.error === 'RateLimitExceeded');
 })();
 
 
