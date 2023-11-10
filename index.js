@@ -31,6 +31,14 @@ function formatResetTime(timestamp) {
     if (file.includes(`bsky-social-${code1}-${code2}`)) {
       continue;
     }
+
+    // `{"handle":"${username}","password":"${password}","email":"${email}","inviteCode":"bsky-social-${code1}-${code2}"}`
+    const body = {
+      handle: username,
+      password: password,
+      email: email,
+      inviteCode: `bsky-social-${code1}-${code2}`
+    }
     const response = await (await fetch("https://bsky.social/xrpc/com.atproto.server.createAccount", {
       "credentials": "omit",
       "headers": {
@@ -43,27 +51,27 @@ function formatResetTime(timestamp) {
         "Sec-Fetch-Site": "cross-site"
       },
       "referrer": "https://bsky.app/",
-      "body": `{"handle":"${username}","password":"${password}","email":"${email}","inviteCode":"bsky-social-${code1}-${code2}"}`,
+      "body": JSON.stringify(body),
       "method": "POST",
       "mode": "cors"
     }))
-    result = await response.json();
-
-    console.log(result)
     console.log(`Code: bsky-social-${code1}-${code2}`)
-
-    // get headers from response
-    const rateLimitLimit = parseInt(response.headers.get('ratelimit-limit'));
-    const rateLimitReset = parseInt(response.headers.get('ratelimit-reset'));
-    const rateLimitRemaining  = parseInt(response.headers.get('ratelimit-remaining'));
-
-    // afficher le statut de la limite de taux
-    console.log(`Limite de taux: ${rateLimitRemaining}/${rateLimitLimit}`);
-    console.log(`Réinitialiser la limite de taux: ${formatResetTime(rateLimitReset)}`);
-
-    if (rateLimitRemaining === 0) {
-      console.log("Limite de taux atteinte. Attente avant de continuer...");
-      await delay((rateLimitReset - Math.floor(Date.now() / 1000) + 5) * 1000);
+    try {
+      if (response.status === 200) {
+        result = await response.json();
+        break;
+      } else if (response.status !== 400) {
+        console.log(body)
+        console.log(response.status, response.statusText);
+        await delay(10000);
+        continue;
+      }
+      result = await response.json();
+      console.log(result)
+    } catch (e) {
+      console.log(e);
+      console.log(body, response);
+      break;
     }
 
 
@@ -72,7 +80,22 @@ function formatResetTime(timestamp) {
       fs.appendFileSync('bsky-social.txt', `bsky-social-${code1}-${code2}\n`)
       file += `bsky-social-${code1}-${code2}\n`
     }
+
+    // get headers from response
+    const rateLimitLimit = parseInt(response.headers.get('ratelimit-limit'));
+    const rateLimitReset = parseInt(response.headers.get('ratelimit-reset'));
+    const rateLimitRemaining = parseInt(response.headers.get('ratelimit-remaining'));
+
+    // afficher le statut de la limite de taux
+    console.log(`Limite de taux: ${rateLimitRemaining}/${rateLimitLimit}`);
+    console.log(`Réinitialiser la limite de taux: ${formatResetTime(rateLimitReset)}`);
+    console.log(`----------------------------------------`);
+    if (rateLimitRemaining === 0) {
+      console.log("Limite de taux atteinte. Attente avant de continuer...");
+      await delay((rateLimitReset - Math.floor(Date.now() / 1000) + 5) * 1000);
+    }
   } while (result.error === 'InvalidInviteCode' || result.error === 'RateLimitExceeded');
+  console.log(result)
 })();
 
 
